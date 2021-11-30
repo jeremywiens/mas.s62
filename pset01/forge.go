@@ -119,17 +119,77 @@ func Forge() (string, Signature, error) {
 	fmt.Printf("ok 3: %v\n", Verify(msgslice[2], pub, sig3))
 	fmt.Printf("ok 4: %v\n", Verify(msgslice[3], pub, sig4))
 
-	msgString := "my forged message"
+	var msgString string
 	var sig Signature
 
 	// your code here!
 	// ==
-	// Geordi La
+
+	// message that works
+	//forge jeremy548617900
+	//forge jeremydwiens@gmail.com 296125400
+	baseMsg := "forge jeremy54"
+
+	var hackedSecret SecretKey
+	var knownOnes [256]bool
+	var knownZeros [256]bool
+
+	// create as much of secret key as possible
+	// keep track of whcih parts of secret key we have access to
+	for x := 0; x < 256; x++ {
+		knownZeros[x], hackedSecret.ZeroPre[x] = GetPrivateBlock(sigslice, pub.ZeroHash[x], x)
+		knownOnes[x], hackedSecret.OnePre[x] = GetPrivateBlock(sigslice, pub.OneHash[x], x)
+	}
+
+	// create a base message, add number to message until its hash will only use parts of secret key we now know
+	for x := 0; !IsValidMsg(msgString, knownZeros, knownOnes); x++ {
+		msgString = baseMsg + fmt.Sprint(x)
+	}
+
+	fmt.Println(msgString)
+
+	// create sig by using the secret key and message
+	sig = Sign(GetMessageFromString(msgString), hackedSecret)
+
 	// ==
 
 	return msgString, sig, nil
 
 }
 
-// hint:
-// arr[i/8]>>(7-(i%8)))&0x01
+// return true if the given string only uses known parts of secret key
+func IsValidMsg(str string, knownZeros [256]bool, knownOnes [256]bool) bool {
+	hash := GetMessageFromString(str)
+
+	for byteIdx, b := range hash {
+		for bitIdx := 0; bitIdx < 8; bitIdx++ {
+			loc := byteIdx*8 + bitIdx
+			if (1<<(7-bitIdx))&b == 0 {
+				if !knownZeros[loc] {
+					return false
+				}
+			} else {
+				if !knownOnes[loc] {
+					return false
+				}
+			}
+		}
+	}
+
+	return true
+}
+
+// get part of secret key if it can be known
+func GetPrivateBlock(sigslice []Signature, hash Block, index int) (bool, Block) {
+	if sigslice[0].Preimage[index].Hash() == hash {
+		return true, sigslice[0].Preimage[index]
+	} else if sigslice[1].Preimage[index].Hash() == hash {
+		return true, sigslice[1].Preimage[index]
+	} else if sigslice[2].Preimage[index].Hash() == hash {
+		return true, sigslice[2].Preimage[index]
+	} else if sigslice[3].Preimage[index].Hash() == hash {
+		return true, sigslice[3].Preimage[index]
+	}
+
+	return false, Block{}
+}
