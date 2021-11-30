@@ -141,7 +141,7 @@ func Forge() (string, Signature, error) {
 		knownOnes[x], hackedSecret.OnePre[x] = GetPrivateBlock(sigslice, pub.OneHash[x], x)
 	}
 
-	// create a base message, add number to message until its hash will only use parts of secret key we now know
+	// We could just sign and then try to verify, but this is much quicker
 	for x := 0; !IsValidMsg(msgString, knownZeros, knownOnes); x++ {
 		msgString = baseMsg + fmt.Sprint(x)
 	}
